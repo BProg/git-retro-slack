@@ -31,7 +31,7 @@ pub fn install_daemon() -> Result<(), Box<dyn Error>> {
     path_buf.set_extension("plist");
     let mut file = File::create(path_buf.as_path())?;
     let data = create_launch_agent_plist_content()?;
-    file.write(data.as_bytes());
+    file.write(data.as_bytes())?;
     Ok(())
 }
 

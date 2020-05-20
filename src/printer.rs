@@ -46,3 +46,7 @@ pub(crate) fn print_commit(commit: &git2::Commit) {
 pub(crate) fn print_slack_message(log: &String) {
     println!("Sending to slack\n{}", log);
 }
+
+pub(crate) fn print_invalid_command() {
+    println!("{}", "Invalid command".color(Color::DarkRed1));
+}

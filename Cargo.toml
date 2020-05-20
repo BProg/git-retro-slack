@@ -1,5 +1,5 @@
 [package]
-name = "git_year_one"
+name = "gitretro"
 version = "0.1.0"
 authors = ["Ion Ostafi <ostafi_ion@yahoo.com>"]
 edition = "2018"

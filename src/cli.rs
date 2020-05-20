@@ -5,7 +5,8 @@ use std::{error::Error, io, env};
 pub enum Command {
     Config,
     Run,
-    InstallD
+    InstallD,
+    Invalid
 }
 
 pub fn get_command() -> Command {
@@ -15,7 +16,7 @@ pub fn get_command() -> Command {
             match &command[..] {
                 "config" => Command::Config,
                 "installd" => Command::InstallD,
-                _ => Command::Run
+                _ => Command::Invalid
             }
         },
         None => Command::Run

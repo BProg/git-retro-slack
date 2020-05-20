@@ -28,6 +28,9 @@ async fn main() {
             if let Err(e) = launchd::install_daemon() {
                 print_error(e);
             }
+        },
+        Command::Invalid => {
+            printer::print_invalid_command();
         }
     };
 }

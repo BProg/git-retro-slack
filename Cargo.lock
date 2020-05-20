@@ -274,7 +274,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "git_year_one"
+name = "gitretro"
 version = "0.1.0"
 dependencies = [
  "chrono",
