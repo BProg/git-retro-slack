@@ -25,9 +25,24 @@ pub fn prettify(commits: &Vec<String>) -> String {
 
 fn increase_index(i: usize) -> usize {
     let next = i + 1;
-    if next > 9 {
+    if next > SUFFIX_EMOJIES.len() {
         0
     } else {
         next
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_0_commits_message_is_empty() {
+        let message = super::prettify(&vec![]);
+        assert!(message.len() == 0);
+    }
+
+    #[test]
+    fn test_increase_max_allowed_index() {
+        let next_index = super::increase_index(super::SUFFIX_EMOJIES.len());
+        assert_eq!(0, next_index);
     }
 }
