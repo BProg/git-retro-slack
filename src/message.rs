@@ -16,7 +16,11 @@ pub fn prettify(commits: &Vec<String>) -> String {
             pretty
         });
     pretty.push_str(&format!("{} merged commits in one day", commits_count));
-    pretty
+    if commits_count == 0 {
+        "".into()
+    } else {
+        pretty
+    }
 }
 
 fn increase_index(i: usize) -> usize {
