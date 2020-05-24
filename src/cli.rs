@@ -6,7 +6,8 @@ pub enum Command {
     Config,
     Run,
     InstallD,
-    Invalid
+    Invalid,
+    Help
 }
 
 pub fn get_command() -> Command {
@@ -14,12 +15,14 @@ pub fn get_command() -> Command {
     match args.next() {
         Some(command) => {
             match &command[..] {
+                "run" => Command::Run,
                 "config" => Command::Config,
                 "installd" => Command::InstallD,
+                "--help" | "-h" => Command::Help,
                 _ => Command::Invalid
             }
         },
-        None => Command::Run
+        None => Command::Invalid
     }
 }
 

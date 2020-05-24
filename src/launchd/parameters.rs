@@ -12,6 +12,7 @@ pub fn create_parameters(exe_path: &str) -> String {
     <key>ProgramArguments</key>
     <array>
       <string>{0}</string>
+      <string>run</string>
     </array>
     <key>StartCalendarInterval</key>
     <array>

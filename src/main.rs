@@ -15,6 +15,9 @@ pub const APP_NAME: &str = "git-retrospective";
 #[tokio::main]
 async fn main() {
     match get_command() {
+        Command::Help => {
+            printer::print_usage();
+        }
         Command::Config => {
             if let Err(e) = configure().and_then(|cfg| config::store_config(&cfg)) {
                 print_error(e);
