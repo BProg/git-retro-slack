@@ -8,7 +8,7 @@
 
 ### Usage
 
-```sh
+```log
 gitretro
 
 Usage:
