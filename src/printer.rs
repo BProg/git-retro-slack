@@ -65,6 +65,7 @@ Restart or logout is required in order for it to take effect",
 
 pub(crate) fn print_usage() {
     let usage = r"gitretro
+
 Usage:
 gitretro run            runs the program
 gitretro installd       installs the launch agent parameters in user's space
@@ -72,8 +73,6 @@ gitretro config         configures the tool
 
 Options:
 --help          prints this message
-
-Author: Ion Ostafi
 ";
     println!("{}", usage);
 }

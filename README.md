@@ -6,26 +6,18 @@
 - Prettify the commits messages and send them to slack
 - Install it as a osx user launch agent and it will run every weekday
 
-## Usage
-
-**Tell the app where to read git history and the slack channel to send the message:**
-
-```sh
-gitretro config
-```
-
-**Install as a user launch agent in `~/Library/LaunchAgents/`:**
-
-```sh
-gitretro installd
-```
-
-It runs every week day at 10:00 am
-
-**Read history and send a message to slack:**
+### Usage
 
 ```sh
 gitretro
+
+Usage:
+gitretro run            runs the program
+gitretro installd       installs the launch agent parameters in user's space
+gitretro config         configures the tool
+
+Options:
+--help          prints this message
 ```
 
 ## About
