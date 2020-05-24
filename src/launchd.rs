@@ -1,14 +1,14 @@
 use directories::UserDirs;
+use std::fs::File;
 use std::io::Write;
 use std::{error::Error, fmt::Display};
-use std::{fs::File};
 
 mod parameters;
 
 #[derive(Debug)]
 pub enum DaemonError {
     UserHome,
-    ExePath
+    ExePath,
 }
 
 impl Display for DaemonError {
@@ -22,17 +22,17 @@ impl Display for DaemonError {
 
 impl Error for DaemonError {}
 
-pub fn install_daemon() -> Result<(), Box<dyn Error>> {
+pub fn install_daemon() -> Result<String, Box<dyn Error>> {
     let dirs = UserDirs::new().ok_or(DaemonError::UserHome)?;
     let mut path_buf = dirs.home_dir().to_path_buf();
-    path_buf.push("Library");
-    path_buf.push("LaunchAgents");
-    path_buf.push("com.ionostafi.gitretro");
-    path_buf.set_extension("plist");
+    path_buf.push(format!(
+        "Library/LaunchAgents/{}.plist",
+        crate::environment::get_launch_agent_file()
+    ));
     let mut file = File::create(path_buf.as_path())?;
     let data = create_launch_agent_plist_content()?;
     file.write(data.as_bytes())?;
-    Ok(())
+    Ok(path_buf.to_string_lossy().into())
 }
 
 fn create_launch_agent_plist_content() -> Result<String, Box<dyn std::error::Error>> {

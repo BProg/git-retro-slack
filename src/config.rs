@@ -1,8 +1,8 @@
+use crate::printer;
 use confy::{load_path, store_path};
 use directories::UserDirs;
 use serde::{Deserialize, Serialize};
 use std::{error::Error, fmt::Display};
-use crate::printer;
 
 #[derive(Debug)]
 pub enum ConfigError {
@@ -59,7 +59,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
     let mut path_buf = path.to_path_buf();
     path_buf.push(".config");
     path_buf.push(super::APP_NAME);
-    path_buf.push("config");
+    path_buf.push(crate::environment::get_config_file());
     path_buf.set_extension("toml");
     load_path(&path_buf.as_path()).map_err(|e| e.into())
 }
@@ -71,7 +71,7 @@ pub fn store_config(config: &Config) -> Result<(), Box<dyn Error>> {
     let mut path_buf = path.to_path_buf();
     path_buf.push(".config");
     path_buf.push(super::APP_NAME);
-    path_buf.push("config");
+    path_buf.push(crate::environment::get_config_file());
     path_buf.set_extension("toml");
     store_path(&path_buf.as_path(), config).map_err(|e| e.into())
 }

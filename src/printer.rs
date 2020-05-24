@@ -2,16 +2,17 @@ use crate::config::Config;
 use chrono::NaiveDateTime;
 use colorful::{Color, Colorful};
 
-const PREFIX_COLOR: Color = Color::DarkGray;
+const COL_NOTICE: Color = Color::DarkGray;
+const COL_ERROR: Color = Color::DarkRed1;
 
 pub fn print_config(config: &Config) {
-    let prefix = "Config:".color(PREFIX_COLOR);
+    let prefix = "Config:".color(COL_NOTICE);
     println!("{} {}", prefix, config.to_string().bold());
 }
 
 pub fn print_time_range(from: &NaiveDateTime, to: &NaiveDateTime) {
-    let from_msg = "Searching logs from".color(PREFIX_COLOR);
-    let to_msg = "to".color(PREFIX_COLOR);
+    let from_msg = "Searching logs from".color(COL_NOTICE);
+    let to_msg = "to".color(COL_NOTICE);
     println!(
         "{} {} {} {}",
         from_msg,
@@ -32,15 +33,18 @@ pub(crate) fn ask_slack_hook() {
 }
 
 pub(crate) fn print_repo_invalid() {
-    println!("{}", "Repo path is not valid".color(Color::DarkRed1).bold());
+    println!("{}", "Repo path is not valid".color(COL_ERROR).bold());
 }
 
 pub(crate) fn print_slack_hook_invalid() {
-    println!("{}", "Slack hook is not valid".color(Color::DarkRed1).bold());
+    println!("{}", "Slack hook is not valid".color(COL_ERROR).bold());
 }
 
 pub(crate) fn print_commit(commit: &git2::Commit) {
-    println!("Found commit {}", commit.summary().unwrap_or("Cannot read summary"));
+    println!(
+        "Found commit {}",
+        commit.summary().unwrap_or("Cannot read summary")
+    );
 }
 
 pub(crate) fn print_slack_message(log: &String) {
@@ -48,5 +52,13 @@ pub(crate) fn print_slack_message(log: &String) {
 }
 
 pub(crate) fn print_invalid_command() {
-    println!("{}", "Invalid command".color(Color::DarkRed1));
+    println!("{}", "Invalid command".color(COL_ERROR));
+}
+
+pub(crate) fn print_launch_agent_installed(path: &str) {
+    println!(
+        r"Launch agent installed in {}
+Restart or logout is required in order for it to take effect",
+        path.color(COL_NOTICE)
+    );
 }

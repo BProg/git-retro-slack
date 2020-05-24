@@ -1,9 +1,10 @@
 mod cli;
 mod config;
+mod environment;
 mod git;
+mod launchd;
 mod message;
 mod printer;
-mod launchd;
 
 use cli::{configure, get_command, Command};
 use reqwest::Client;
@@ -23,12 +24,13 @@ async fn main() {
             if let Err(e) = run().await {
                 print_error(e);
             }
-        },
+        }
         Command::InstallD => {
-            if let Err(e) = launchd::install_daemon() {
-                print_error(e);
+            match launchd::install_daemon() {
+                Err(e) => print_error(e),
+                Ok(path) => printer::print_launch_agent_installed(&path),
             }
-        },
+        }
         Command::Invalid => {
             printer::print_invalid_command();
         }
