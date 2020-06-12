@@ -40,7 +40,7 @@ fn create_launch_agent_plist_content() -> Result<String, Box<dyn std::error::Err
     match exe_path.to_str() {
         None => Err(DaemonError::ExePath.into()),
         Some(path) => {
-            let launchd_params = parameters::create_parameters(path);
+            let launchd_params = parameters::create_parameters(path, crate::environment::get_launch_agent_file());
             Ok(launchd_params)
         }
     }

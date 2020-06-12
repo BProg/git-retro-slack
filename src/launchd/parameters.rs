@@ -1,4 +1,4 @@
-pub fn create_parameters(exe_path: &str) -> String {
+pub fn create_parameters(exe_path: &str, label: &str) -> String {
     format!(
         r#"
 <?xml version="1.0" encoding="UTF-8" ?>
@@ -6,7 +6,7 @@ pub fn create_parameters(exe_path: &str) -> String {
 <plist version="1.0">
   <dict>
     <key>Label</key>
-    <string>com.ionostafi.gitretro</string>
+    <string>{1}</string>
     <key>Program</key>
     <string>{0}</string>
     <key>ProgramArguments</key>
@@ -59,5 +59,5 @@ pub fn create_parameters(exe_path: &str) -> String {
     </array>
   </dict>
 </plist>
-"#, exe_path)
+"#, exe_path, label)
 }
