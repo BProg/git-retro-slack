@@ -7,13 +7,13 @@ mod message;
 mod printer;
 
 use cli::{configure, get_command, Command};
-use reqwest::Client;
-use std::error::Error;
+use std::*;
+use reqwest::{blocking};
+
 
 pub const APP_NAME: &str = "git-retrospective";
 
-#[tokio::main]
-async fn main() {
+fn main() {
     match get_command() {
         Command::Help => {
             printer::print_usage();
@@ -24,9 +24,7 @@ async fn main() {
             }
         }
         Command::Run => {
-            if let Err(e) = run().await {
-                print_error(e);
-            }
+            await_run()
         }
         Command::InstallD => {
             match launchd::install_daemon() {
@@ -40,7 +38,13 @@ async fn main() {
     };
 }
 
-async fn run() -> Result<reqwest::Response, Box<dyn Error>> {
+fn await_run() {
+    if let Err(e) = run() {
+        print_error(e);
+    }
+}
+
+fn run() -> Result<blocking::Response, Box<dyn error::Error>> {
     let app_config = config::get_config();
     match app_config {
         Err(e) => Err(e),
@@ -50,7 +54,6 @@ async fn run() -> Result<reqwest::Response, Box<dyn Error>> {
             match repo.get_log() {
                 Err(e) => Err(e),
                 Ok(log) => send_to_slack(&app_config.slack_web_hook, &message::prettify(&log))
-                    .await
                     .map_err(|e| Box::from(e)),
             }
         }
@@ -61,12 +64,11 @@ fn print_error(error: Box<dyn ::std::error::Error>) {
     println!("error: {}", error)
 }
 
-async fn send_to_slack(hook: &str, log: &String) -> Result<reqwest::Response, reqwest::Error> {
+fn send_to_slack(hook: &str, log: &String) -> reqwest::Result<blocking::Response> {
     printer::print_slack_message(log);
-    let client = Client::new();
+    let client = reqwest::blocking::Client::new();
     client
         .post(hook)
         .body(format!("{{\"text\": \"{}\"}}", log))
         .send()
-        .await
 }
