@@ -20,15 +20,17 @@ fn main() {
         }
         Command::Config => {
             if let Err(e) = configure().and_then(|cfg| config::store_config(&cfg)) {
-                print_error(e);
+                printer::print_error(e);
             }
         }
         Command::Run => {
-            await_run()
+            if let Err(e) = run() {
+                printer::print_error(e);
+            }
         }
         Command::InstallD => {
             match launchd::install_daemon() {
-                Err(e) => print_error(e),
+                Err(e) => printer::print_error(e),
                 Ok(path) => printer::print_launch_agent_installed(&path),
             }
         }
@@ -36,12 +38,6 @@ fn main() {
             printer::print_invalid_command();
         }
     };
-}
-
-fn await_run() {
-    if let Err(e) = run() {
-        print_error(e);
-    }
 }
 
 fn run() -> Result<blocking::Response, Box<dyn error::Error>> {
@@ -58,10 +54,6 @@ fn run() -> Result<blocking::Response, Box<dyn error::Error>> {
             }
         }
     }
-}
-
-fn print_error(error: Box<dyn ::std::error::Error>) {
-    println!("error: {}", error)
 }
 
 fn send_to_slack(hook: &str, log: &String) -> reqwest::Result<blocking::Response> {

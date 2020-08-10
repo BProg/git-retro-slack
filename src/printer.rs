@@ -76,3 +76,7 @@ Options:
 ";
     println!("{}", usage);
 }
+
+pub fn print_error(error: Box<dyn ::std::error::Error>) {
+    println!("error: {}", error)
+}
