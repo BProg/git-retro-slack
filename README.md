@@ -27,8 +27,8 @@ It's a mini project that I did for myself, because I want to learn rust more. It
 ## TODO
 
 - [ ] integrate quote of the day API
-- [ ] optimize and reduce app size
 - [ ] logging to a file while launch agent is running
+- [x] optimize and reduce app size
 - [x] improve commands with help messages for other commands
 - [x] install daemon from cli
 - [x] create a beautiful message summary with emojis

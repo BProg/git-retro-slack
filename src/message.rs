@@ -25,7 +25,7 @@ pub fn prettify(commits: &Vec<String>) -> String {
 
 fn increase_index(i: usize) -> usize {
     let next = i + 1;
-    if next > SUFFIX_EMOJIES.len() {
+    if next >= SUFFIX_EMOJIES.len() {
         0
     } else {
         next
@@ -42,7 +42,7 @@ mod test {
 
     #[test]
     fn test_increase_max_allowed_index() {
-        let next_index = super::increase_index(super::SUFFIX_EMOJIES.len());
+        let next_index = super::increase_index(super::SUFFIX_EMOJIES.len() - 1);
         assert_eq!(0, next_index);
     }
 }

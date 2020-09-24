@@ -58,7 +58,7 @@ fn run() -> Result<blocking::Response, Box<dyn error::Error>> {
 
 fn send_to_slack(hook: &str, log: &String) -> reqwest::Result<blocking::Response> {
     printer::print_slack_message(log);
-    let client = reqwest::blocking::Client::new();
+    let client = blocking::Client::new();
     client
         .post(hook)
         .body(format!("{{\"text\": \"{}\"}}", log))
