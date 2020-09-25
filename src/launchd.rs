@@ -31,7 +31,7 @@ pub fn install_daemon() -> Result<String, Box<dyn Error>> {
     ));
     let mut file = File::create(path_buf.as_path())?;
     let data = create_launch_agent_plist_content()?;
-    file.write(data.as_bytes())?;
+    file.write_all(data.as_bytes())?;
     Ok(path_buf.to_string_lossy().into())
 }
 
@@ -40,7 +40,8 @@ fn create_launch_agent_plist_content() -> Result<String, Box<dyn std::error::Err
     match exe_path.to_str() {
         None => Err(DaemonError::ExePath.into()),
         Some(path) => {
-            let launchd_params = parameters::create_parameters(path, crate::environment::get_launch_agent_file());
+            let launchd_params =
+                parameters::create_parameters(path, crate::environment::get_launch_agent_file());
             Ok(launchd_params)
         }
     }

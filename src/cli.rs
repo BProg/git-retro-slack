@@ -1,48 +1,47 @@
-use crate::printer;
 use crate::config::Config;
-use std::{error::Error, io, env};
+use std::{env, error::Error, io};
+
+pub mod log;
 
 pub enum Command {
     Config,
     Run,
     InstallD,
     Invalid,
-    Help
+    Help,
 }
 
 pub fn get_command() -> Command {
-    let mut args = env::args().into_iter().skip(1);
+    let mut args = env::args().skip(1);
     match args.next() {
-        Some(command) => {
-            match &command[..] {
-                "run" => Command::Run,
-                "config" => Command::Config,
-                "installd" => Command::InstallD,
-                "--help" | "-h" => Command::Help,
-                _ => Command::Invalid
-            }
+        Some(command) => match &command[..] {
+            "run" => Command::Run,
+            "config" => Command::Config,
+            "installd" => Command::InstallD,
+            "--help" | "-h" => Command::Help,
+            _ => Command::Invalid,
         },
-        None => Command::Invalid
+        None => Command::Invalid,
     }
 }
 
 pub fn configure() -> Result<Config, Box<dyn Error>> {
-    printer::ask_repo_path();
+    log::important("Repository absolute path:");
     let mut path = String::new();
     match io::stdin().read_line(&mut path) {
         Ok(bytes) => {
             if bytes == 0 {
-                printer::print_repo_invalid();
+                log::error("Repo path is not valid");
             }
         }
         Err(_) => println!("Failed to read input"),
     };
     let mut hook = String::new();
-    printer::ask_slack_hook();
+    log::important("Slack web hook:");
     match io::stdin().read_line(&mut hook) {
         Ok(bytes) => {
             if bytes == 0 {
-                printer::print_slack_hook_invalid();
+                log::error("Slack hook is not valid");
             }
         }
         Err(_) => println!("Failed to read input"),
@@ -50,7 +49,7 @@ pub fn configure() -> Result<Config, Box<dyn Error>> {
     path = path.trim().into();
     hook = hook.trim().into();
 
-    if path.len() > 0 && hook.len() > 0 {
+    if !path.is_empty() && !hook.is_empty() {
         Ok(Config::new(&path, &hook))
     } else {
         Err("Failed to create a new config".into())

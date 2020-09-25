@@ -4,7 +4,7 @@ A reminder on how cool you all are 😎
 A year ago, this same day you've written history 📜
 "#;
 
-pub fn prettify(commits: &Vec<String>) -> String {
+pub fn prettify(commits: &[String]) -> String {
     let mut index = 0usize;
     let mut commits_count = 0u16;
     let mut pretty = commits

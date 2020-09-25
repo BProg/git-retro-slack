@@ -24,40 +24,10 @@ pub fn create_parameters(exe_path: &str, label: &str) -> String {
         <key>Minute</key>
         <integer>00</integer>
       </dict>
-      <dict>
-        <key>Weekday</key>
-        <integer>2</integer>
-        <key>Hour</key>
-        <integer>10</integer>
-        <key>Minute</key>
-        <integer>00</integer>
-      </dict>
-      <dict>
-        <key>Weekday</key>
-        <integer>3</integer>
-        <key>Hour</key>
-        <integer>10</integer>
-        <key>Minute</key>
-        <integer>00</integer>
-      </dict>
-      <dict>
-        <key>Weekday</key>
-        <integer>4</integer>
-        <key>Hour</key>
-        <integer>10</integer>
-        <key>Minute</key>
-        <integer>00</integer>
-      </dict>
-      <dict>
-        <key>Weekday</key>
-        <integer>5</integer>
-        <key>Hour</key>
-        <integer>10</integer>
-        <key>Minute</key>
-        <integer>00</integer>
-      </dict>
     </array>
   </dict>
 </plist>
-"#, exe_path, label)
+"#,
+        exe_path, label
+    )
 }

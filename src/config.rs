@@ -1,4 +1,4 @@
-use crate::printer;
+use crate::cli::log;
 use confy::{load_path, store_path};
 use directories::UserDirs;
 use serde::{Deserialize, Serialize};
@@ -65,7 +65,10 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
 }
 
 pub fn store_config(config: &Config) -> Result<(), Box<dyn Error>> {
-    printer::print_config(&config);
+    log::multiple(vec![
+        log::Style::Message("Config: "),
+        log::Style::Important(&config.to_string()),
+    ]);
     let dirs = UserDirs::new().ok_or(ConfigError::UserHome)?;
     let path = dirs.home_dir();
     let mut path_buf = path.to_path_buf();

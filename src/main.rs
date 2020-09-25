@@ -4,60 +4,68 @@ mod environment;
 mod git;
 mod launchd;
 mod message;
-mod printer;
 
-use cli::{configure, get_command, Command};
+use cli::{configure, get_command, log, Command};
+use reqwest::blocking;
 use std::*;
-use reqwest::{blocking};
-
 
 pub const APP_NAME: &str = "git-retrospective";
 
 fn main() {
     match get_command() {
         Command::Help => {
-            printer::print_usage();
+            print_usage();
         }
         Command::Config => {
             if let Err(e) = configure().and_then(|cfg| config::store_config(&cfg)) {
-                printer::print_error(e);
+                log::error(e.to_string());
             }
         }
         Command::Run => {
             if let Err(e) = run() {
-                printer::print_error(e);
+                log::error(e.to_string());
             }
         }
-        Command::InstallD => {
-            match launchd::install_daemon() {
-                Err(e) => printer::print_error(e),
-                Ok(path) => printer::print_launch_agent_installed(&path),
-            }
-        }
+        Command::InstallD => match launchd::install_daemon() {
+            Err(e) => log::error(e.to_string()),
+            Ok(path) => log::message(format!(
+                r"Launch agent installed in {}
+            Restart or logout is required in order for it to take effect",
+                path
+            )),
+        },
         Command::Invalid => {
-            printer::print_invalid_command();
+            log::error("Invalid command, try --help option");
         }
     };
 }
 
-fn run() -> Result<blocking::Response, Box<dyn error::Error>> {
-    let app_config = config::get_config();
-    match app_config {
-        Err(e) => Err(e),
-        Ok(app_config) => {
-            printer::print_config(&app_config);
-            let repo = git::GitRepo::new(&app_config.repo_path);
-            match repo.get_log() {
-                Err(e) => Err(e),
-                Ok(log) => send_to_slack(&app_config.slack_web_hook, &message::prettify(&log))
-                    .map_err(|e| Box::from(e)),
-            }
-        }
-    }
+pub(crate) fn print_usage() {
+    let usage = r#"gitretro
+
+                    Usage:
+                    gitretro run            runs the program
+                    gitretro installd       installs the launch agent parameters in user's space
+                    gitretro config         configures the tool
+
+                    Options:
+                    --help          prints this message"#;
+    println!("{}", usage);
 }
 
-fn send_to_slack(hook: &str, log: &String) -> reqwest::Result<blocking::Response> {
-    printer::print_slack_message(log);
+fn run() -> Result<blocking::Response, Box<dyn error::Error>> {
+    let app_config = config::get_config()?;
+    log::multiple(vec![
+        log::Style::Message("Config: "),
+        log::Style::Important(&app_config.to_string()),
+    ]);
+    let repo = git::GitRepo::new(&app_config.repo_path);
+    let log = repo.get_log()?;
+    send_to_slack(&app_config.slack_web_hook, &message::prettify(&log)).map_err(Box::from)
+}
+
+fn send_to_slack(hook: &str, log: &str) -> reqwest::Result<blocking::Response> {
+    log::message(format!("Sending to slack \n{}", log));
     let client = blocking::Client::new();
     client
         .post(hook)

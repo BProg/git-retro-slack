@@ -1,4 +1,4 @@
-use crate::printer;
+use crate::log;
 use chrono::{Duration, NaiveDate, NaiveDateTime};
 use git2::{Commit, Repository, Time};
 use std::{
@@ -15,7 +15,7 @@ impl GitRepo {
     pub fn new(repo_path: &str) -> Self {
         Self {
             repo: Repository::open(repo_path),
-            today: get_today_naive_date_time(),
+            today: today(),
         }
     }
 
@@ -29,7 +29,12 @@ impl GitRepo {
 
     pub fn get_log(&self) -> Result<Vec<String>, Box<dyn Error>> {
         let (datetime_from, datetime_to) = last_two_weeks(&self.today);
-        printer::print_time_range(&datetime_from, &datetime_to);
+        log::multiple(vec![
+            log::Style::Message("Searching logs from: "),
+            log::Style::Important(&datetime_from.to_string()),
+            log::Style::Message(" to "),
+            log::Style::Important(&datetime_to.to_string()),
+        ]);
         let (time_from, time_to) = (
             Time::new(datetime_from.timestamp(), 0),
             Time::new(datetime_to.timestamp(), 0),
@@ -62,7 +67,10 @@ impl GitRepo {
             oid.and_then(|oid| repo.find_commit(oid))
                 .and_then(|commit| {
                     if is_in_range(&commit, &from, &to) {
-                        printer::print_commit(&commit);
+                        log::message(format!(
+                            "Found commit: {}",
+                            commit.summary().unwrap_or_default()
+                        ));
                         summary.push(summarize(&commit));
                     }
                     Ok(summary)
@@ -86,23 +94,23 @@ fn summarize(commit: &Commit) -> String {
     let author: String = commit.author().name().map_or("".into(), |name| name.into());
     let short = commit
         .summary()
-        .map(|s| String::from(s))
-        .unwrap_or("".into());
+        .map(String::from)
+        .unwrap_or_else(|| "".into());
     format!("{} {}", author, short)
 }
 
 fn last_two_weeks(today: &NaiveDateTime) -> (NaiveDateTime, NaiveDateTime) {
     let two_weeks_ago = *today - Duration::weeks(2);
-    (two_weeks_ago, today.clone())
+    (two_weeks_ago, *today)
 }
 
 /// If it fails to create a date time becuase of system time being incorrect on machine,
 /// then, it will return the date time this function was created
-fn get_today_naive_date_time() -> NaiveDateTime {
+fn today() -> NaiveDateTime {
     if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
         NaiveDateTime::from_timestamp(now.as_secs() as i64, 0)
     } else {
-        NaiveDate::from_ymd(2020, 04, 28).and_hms(22, 51, 28)
+        NaiveDate::from_ymd(2020, 4, 28).and_hms(22, 51, 28)
     }
 }
 
