@@ -43,7 +43,6 @@ impl GitRepo {
         ]);
         let (from, to) = (Time::new(from.timestamp(), 0), Time::new(to.timestamp(), 0));
         let merged = self.get_merged(from, to)?;
-        let in_progress = self.get_in_progress(from, to)?;
         Ok(merged)
     }
 
@@ -52,17 +51,16 @@ impl GitRepo {
             .repo
             .as_ref()
             .map_err(|e| Box::new(clone_git2_error(e)))?;
-        let branches = repo.branches(Some(BranchType::Local))?;
+        let branches = repo.branches(Some(BranchType::Remote))?;
         let names = branches
             .filter_map(|branch_and_type| {
-                dbg!("ping");
                 if let Ok((branch, _)) = branch_and_type {
                     match self.is_branch_in_range(&branch, &from, &to) {
                         Ok(in_range) if in_range => return Some(branch),
                         _ => return None,
                     }
                 }
-                return None;
+                None
             })
             .filter_map(|branch| branch.name().ok().flatten().map(String::from))
             .collect();
@@ -168,12 +166,12 @@ mod tests {
     }
 
     #[test]
-    fn test_get_commits() {
+    fn test_get_log() {
         let repo = super::GitRepo::new_test("./");
-        let commits = repo.get_log();
-        assert!(commits.is_ok());
+        let log = repo.get_log();
+        assert!(log.is_ok());
         assert_eq!(
-            commits.as_ref().unwrap(),
+            log.as_ref().unwrap(),
             &vec![
                 "Ion Ostafi Add TODO in the readme",
                 "Ion Ostafi Fix programming language for README usage",
@@ -190,6 +188,14 @@ mod tests {
     }
 
     #[test]
+    fn test_get_commits() {
+        let repo = super::GitRepo::new_test("./");
+        let commits = repo.get_commits();
+        assert!(commits.is_ok());
+        assert_eq!(commits.unwrap().iter().count(), 10);
+    }
+
+    #[test]
     fn test_get_branches() {
         use crate::git::{day_with_commits, last_two_weeks};
         use git2::Time;
@@ -202,6 +208,12 @@ mod tests {
         );
         let names = repo.get_in_progress(from, to);
         assert!(names.is_ok());
-        assert_eq!(names.as_ref().unwrap(), &vec!["master"]);
+        assert_eq!(
+            names.as_ref().unwrap(),
+            &vec![
+                "origin/do_not_delete_used_for_tests_1",
+                "origin/do_not_delete_used_for_tests_2"
+            ]
+        );
     }
 }
