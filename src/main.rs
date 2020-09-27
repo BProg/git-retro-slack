@@ -5,6 +5,7 @@ mod git;
 mod launchd;
 mod message;
 
+use git::RepoAnalyzer;
 use cli::{configure, get_command, log, Command};
 use reqwest::blocking;
 use std::*;
@@ -59,9 +60,8 @@ fn run() -> Result<blocking::Response, Box<dyn error::Error>> {
         log::Style::Message("Config: "),
         log::Style::Important(&app_config.to_string()),
     ]);
-    let repo = git::GitRepo::new(&app_config.repo_path);
+    let repo = RepoAnalyzer::new(&app_config.repo_path);
     let log = repo.get_log()?;
-    let commits = repo.get_commits()?;
     send_to_slack(&app_config.slack_web_hook, &message::prettify(&log)).map_err(Box::from)
 }
 
