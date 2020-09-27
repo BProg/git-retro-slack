@@ -41,15 +41,15 @@ fn main() {
 }
 
 pub(crate) fn print_usage() {
-    let usage = r#"gitretro
+    let usage = r"gitretro
 
-                    Usage:
-                    gitretro run            runs the program
-                    gitretro installd       installs the launch agent parameters in user's space
-                    gitretro config         configures the tool
+Usage:
+gitretro run            runs the program
+gitretro installd       installs the launch agent parameters in user's space
+gitretro config         configures the tool
 
-                    Options:
-                    --help          prints this message"#;
+Options:
+--help          prints this message";
     println!("{}", usage);
 }
 
@@ -61,6 +61,7 @@ fn run() -> Result<blocking::Response, Box<dyn error::Error>> {
     ]);
     let repo = git::GitRepo::new(&app_config.repo_path);
     let log = repo.get_log()?;
+    let commits = repo.get_commits()?;
     send_to_slack(&app_config.slack_web_hook, &message::prettify(&log)).map_err(Box::from)
 }
 

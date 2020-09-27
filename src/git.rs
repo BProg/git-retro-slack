@@ -1,10 +1,12 @@
 use crate::log;
 use chrono::{Duration, NaiveDate, NaiveDateTime};
-use git2::{Commit, Repository, Time};
+use git2::{Branch, BranchType, Commit, Repository, Time};
 use std::{
     error::Error,
     time::{SystemTime, UNIX_EPOCH},
 };
+
+pub mod commit;
 
 pub struct GitRepo {
     today: NaiveDateTime,
@@ -28,66 +30,94 @@ impl GitRepo {
     }
 
     pub fn get_log(&self) -> Result<Vec<String>, Box<dyn Error>> {
-        let (datetime_from, datetime_to) = last_two_weeks(&self.today);
+        Ok(self.get_commits()?.iter().map(summarize).collect())
+    }
+
+    pub fn get_commits(&self) -> Result<Vec<Commit>, Box<dyn Error>> {
+        let (from, to) = last_two_weeks(self.today);
         log::multiple(vec![
             log::Style::Message("Searching logs from: "),
-            log::Style::Important(&datetime_from.to_string()),
+            log::Style::Important(&from.to_string()),
             log::Style::Message(" to "),
-            log::Style::Important(&datetime_to.to_string()),
+            log::Style::Important(&to.to_string()),
         ]);
-        let (time_from, time_to) = (
-            Time::new(datetime_from.timestamp(), 0),
-            Time::new(datetime_to.timestamp(), 0),
-        );
-        match &self.repo {
-            Err(e) => Err(Box::new(clone_git2_error(e))),
-            Ok(repo) => self.use_revwalk(repo, &time_from, &time_to),
-        }
+        let (from, to) = (Time::new(from.timestamp(), 0), Time::new(to.timestamp(), 0));
+        let merged = self.get_merged(from, to)?;
+        let in_progress = self.get_in_progress(from, to)?;
+        Ok(merged)
     }
 
-    fn use_revwalk(
-        &self,
-        repo: &Repository,
-        from: &Time,
-        to: &Time,
-    ) -> Result<Vec<String>, Box<dyn Error>> {
+    pub fn get_in_progress(&self, from: Time, to: Time) -> Result<Vec<String>, Box<dyn Error>> {
+        let repo = self
+            .repo
+            .as_ref()
+            .map_err(|e| Box::new(clone_git2_error(e)))?;
+        let branches = repo.branches(Some(BranchType::Local))?;
+        let names = branches
+            .filter_map(|branch_and_type| {
+                dbg!("ping");
+                if let Ok((branch, _)) = branch_and_type {
+                    match self.is_branch_in_range(&branch, &from, &to) {
+                        Ok(in_range) if in_range => return Some(branch),
+                        _ => return None,
+                    }
+                }
+                return None;
+            })
+            .filter_map(|branch| branch.name().ok().flatten().map(String::from))
+            .collect();
+        Ok(names)
+    }
+
+    fn get_merged(&self, from: Time, to: Time) -> Result<Vec<Commit>, Box<dyn Error>> {
+        let repo = self
+            .repo
+            .as_ref()
+            .map_err(|e| Box::new(clone_git2_error(e)))?;
         let mut revwalk = repo.revwalk()?;
         revwalk.push_head()?;
-        self.fold_commits(&mut revwalk, &repo, &from, &to)
+        let commits = revwalk
+            .map(|oid| repo.find_commit(oid?))
+            .skip_while(|commit| {
+                commit
+                    .as_ref()
+                    .map(|commit| !self.is_commit_in_range(commit, &from, &to))
+                    .unwrap_or(true)
+            })
+            .take_while(|commit| {
+                commit
+                    .as_ref()
+                    .map(|commit| self.is_commit_in_range(commit, &from, &to))
+                    .unwrap_or(false)
+            })
+            .filter_map(|commit| commit.ok())
+            .collect::<Vec<Commit>>();
+        Ok(commits)
     }
 
-    fn fold_commits(
+    fn is_branch_in_range(
         &self,
-        revwalk: &mut git2::Revwalk,
-        repo: &Repository,
+        branch: &Branch,
         from: &Time,
         to: &Time,
-    ) -> Result<Vec<String>, Box<dyn Error>> {
-        let summary = revwalk.fold(vec![], |mut summary, oid| {
-            oid.and_then(|oid| repo.find_commit(oid))
-                .and_then(|commit| {
-                    if is_in_range(&commit, &from, &to) {
-                        log::message(format!(
-                            "Found commit: {}",
-                            commit.summary().unwrap_or_default()
-                        ));
-                        summary.push(summarize(&commit));
-                    }
-                    Ok(summary)
-                })
-                .unwrap_or_default()
-        });
-        Ok(summary)
+    ) -> Result<bool, Box<dyn Error>> {
+        let reference = branch.get().resolve()?;
+        if let Some(oid) = reference.target() {
+            let repo = self.repo.as_ref().map_err(clone_git2_error)?;
+            let commit = repo.find_commit(oid)?;
+            return Ok(self.is_commit_in_range(&commit, &from, &to));
+        }
+        Ok(false)
+    }
+
+    fn is_commit_in_range(&self, commit: &Commit, from: &Time, to: &Time) -> bool {
+        let commit_time_secs = commit.time().seconds();
+        commit_time_secs > from.seconds() && commit_time_secs < to.seconds()
     }
 }
 
 fn clone_git2_error(error: &git2::Error) -> git2::Error {
     git2::Error::from_str(error.message())
-}
-
-fn is_in_range(commit: &Commit, from: &Time, to: &Time) -> bool {
-    let commit_time_secs = commit.time().seconds();
-    commit_time_secs > from.seconds() && commit_time_secs < to.seconds()
 }
 
 fn summarize(commit: &Commit) -> String {
@@ -99,9 +129,9 @@ fn summarize(commit: &Commit) -> String {
     format!("{} {}", author, short)
 }
 
-fn last_two_weeks(today: &NaiveDateTime) -> (NaiveDateTime, NaiveDateTime) {
-    let two_weeks_ago = *today - Duration::weeks(2);
-    (two_weeks_ago, *today)
+fn last_two_weeks(today: NaiveDateTime) -> (NaiveDateTime, NaiveDateTime) {
+    let two_weeks_ago = today - Duration::weeks(2);
+    (two_weeks_ago, today)
 }
 
 /// If it fails to create a date time becuase of system time being incorrect on machine,
@@ -131,7 +161,7 @@ mod tests {
             .timestamp();
 
         // when
-        let (from, _) = super::last_two_weeks(&a_day);
+        let (from, _) = super::last_two_weeks(a_day);
 
         // then
         assert_eq!(two_weeks_ago_timestamp, from.timestamp());
@@ -157,5 +187,21 @@ mod tests {
                 "Ion Ostafi Initial commit with basic functionality"
             ]
         );
+    }
+
+    #[test]
+    fn test_get_branches() {
+        use crate::git::{day_with_commits, last_two_weeks};
+        use git2::Time;
+
+        let repo = super::GitRepo::new_test("./");
+        let (today, two_weeks_ago) = last_two_weeks(day_with_commits());
+        let (from, to) = (
+            Time::new(today.timestamp(), 0),
+            Time::new(two_weeks_ago.timestamp(), 0),
+        );
+        let names = repo.get_in_progress(from, to);
+        assert!(names.is_ok());
+        assert_eq!(names.as_ref().unwrap(), &vec!["master"]);
     }
 }
