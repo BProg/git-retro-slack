@@ -62,15 +62,16 @@ fn run() -> Result<blocking::Response, Box<dyn error::Error>> {
     ]);
     let repo = RepoAnalyzer::new(&app_config.repo_path);
     let commits = repo.get_commits()?;
-    let message = slack::message::print_merged_commits(commits);
-    send_to_slack(&app_config.slack_web_hook, &message).map_err(Box::from)
+    let branches = repo.get_in_progress()?;
+    let message = slack::message::create_message(commits, branches);
+    send_to_slack(app_config.slack_web_hook, message).map_err(Box::from)
 }
 
-fn send_to_slack(hook: &str, log: &str) -> reqwest::Result<blocking::Response> {
-    log::message(format!("Sending to slack \n{}", log));
+fn send_to_slack<T: AsRef<str>>(hook: T, log: T) -> reqwest::Result<blocking::Response> {
+    log::message(format!("Sending to slack \n{}", log.as_ref()));
     let client = blocking::Client::new();
     client
-        .post(hook)
-        .body(format!("{{\"text\": \"{}\"}}", log))
+        .post(hook.as_ref())
+        .body(format!("{{\"text\": \"{}\"}}", log.as_ref()))
         .send()
 }

@@ -1,10 +1,11 @@
 use crate::log;
 use chrono::Duration;
-use git2::{BranchType, Commit, Repository, Time};
-use std::error::Error;
+use git2::{BranchType, Commit, Cred, FetchOptions, FetchPrune, RemoteCallbacks, Repository, Time};
+use std::{env, error::Error};
 
 use super::search_interval::SearchInterval;
 
+#[derive(Debug)]
 pub struct RetroCommit {
     pub author: String,
     pub message: String,
@@ -43,10 +44,6 @@ impl RepoAnalyzer {
         self.interval = interval
     }
 
-    pub fn get_log(&self) -> Result<Vec<String>, Box<dyn Error>> {
-        Ok(self.get_commits()?.iter().map(summarize).collect())
-    }
-
     pub fn get_commits(&self) -> Result<Vec<RetroCommit>, Box<dyn Error>> {
         let SearchInterval { from, to } = self.interval;
         log::multiple(vec![
@@ -60,17 +57,13 @@ impl RepoAnalyzer {
         Ok(merged)
     }
 
-    pub fn get_in_progress(
-        &self,
-        from: Time,
-        to: Time,
-    ) -> Result<Vec<WorkingBranch>, Box<dyn Error>> {
+    pub fn get_in_progress(&self) -> Result<Vec<WorkingBranch>, Box<dyn Error>> {
         let repo = self
             .repo
             .as_ref()
             .map_err(|e| Box::new(clone_git2_error(e)))?;
-            // requires authentication logic
-        // repo.find_remote("origin")?.fetch(&["master"], None, None)?;
+        self.fetch_all()?;
+        let (from, to) = self.interval.get_git_time();
         let branch_iter = repo.branches(Some(BranchType::Remote))?;
         let working_branches: Result<Vec<WorkingBranch>, Box<dyn Error>> =
             branch_iter.fold(Ok(vec![]), |working_branches, branch| {
@@ -123,14 +116,32 @@ impl RepoAnalyzer {
         let commit_time_secs = commit.time().seconds();
         commit_time_secs > from.seconds() && commit_time_secs < to.seconds()
     }
+
+    fn fetch_all(&self) -> Result<(), Box<dyn Error>> {
+        let mut options = FetchOptions::new();
+        options.prune(FetchPrune::On);
+        let mut cbs = RemoteCallbacks::new();
+        cbs.credentials(|_url, username_from_url, _allowed_types| {
+            Cred::ssh_key(
+              username_from_url.unwrap(),
+              None,
+              std::path::Path::new(&format!("{}/.ssh/id_rsa", env::var("HOME").unwrap())),
+              None,
+            )
+          });
+        options.remote_callbacks(cbs);
+        let repo = self
+            .repo
+            .as_ref()
+            .map_err(|e| Box::new(clone_git2_error(e)))?;
+        repo.find_remote("origin")?
+            .fetch(&["master"], Some(&mut options), None)?;
+        Ok(())
+    }
 }
 
 fn clone_git2_error(error: &git2::Error) -> git2::Error {
     git2::Error::from_str(error.message())
-}
-
-fn summarize(commit: &RetroCommit) -> String {
-    format!("{} {}", commit.author, commit.message)
 }
 
 #[cfg(test)]
@@ -143,41 +154,19 @@ mod tests {
     }
 
     #[test]
-    fn test_get_log() {
-        let mut repo = super::RepoAnalyzer::new("./");
-        repo.set_interval(SearchInterval::starting(
-            day_with_commits(),
-            Duration::weeks(2),
-        ));
-        let log = repo.get_log();
-        assert!(log.is_ok());
-        assert_eq!(
-            log.as_ref().unwrap(),
-            &vec![
-                "Ion Ostafi Add TODO in the readme",
-                "Ion Ostafi Fix programming language for README usage",
-                "Ion Ostafi Update readme and remove authore from usage",
-                "Ion Ostafi Add usage message when using --help option",
-                "Ion Ostafi Add dev and production environment",
-                "Ion Ostafi Add basic readme",
-                "Ion Ostafi cover with some tests the message module",
-                "Ion Ostafi Fix 0 commits message",
-                "Ion Ostafi Rename app to girretro and add invalid command output",
-                "Ion Ostafi Initial commit with basic functionality"
-            ]
-        );
-    }
-
-    #[test]
     fn test_get_commits() {
         let mut repo = super::RepoAnalyzer::new("./");
         repo.set_interval(SearchInterval::starting(
             day_with_commits(),
-            Duration::weeks(2),
+            Duration::days(1),
         ));
         let commits = repo.get_commits();
         assert!(commits.is_ok());
-        assert_eq!(commits.unwrap().iter().count(), 10);
+        assert_eq!(commits.as_ref().unwrap().iter().count(), 5);
+        assert_eq!(
+            commits.as_ref().unwrap()[4].message,
+            String::from("Add dev and production environment")
+        );
     }
 
     #[test]
@@ -185,10 +174,12 @@ mod tests {
         use super::{SearchInterval, WorkingBranch};
         use chrono::Duration;
 
-        let repo = super::RepoAnalyzer::new("./");
-        let (from, to) =
-            SearchInterval::starting(day_with_commits(), Duration::weeks(2)).get_git_time();
-        let branches = repo.get_in_progress(from, to);
+        let mut repo = super::RepoAnalyzer::new("./");
+        repo.set_interval(SearchInterval::starting(
+            day_with_commits(),
+            Duration::weeks(2),
+        ));
+        let branches = repo.get_in_progress();
         assert!(branches.is_ok());
         assert_eq!(
             branches.as_ref().unwrap(),

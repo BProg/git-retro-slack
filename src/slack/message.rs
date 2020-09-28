@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
-use std::borrow::Borrow;
 
-use crate::git::RetroCommit;
+use crate::git::{RetroCommit, WorkingBranch};
 
 const SUFFIX_EMOJIES: [char; 10] = ['🙌', '👍', '🙏', '🎉', '🚀', '🤘', '👏', '🙌', '👍', '🙏'];
 const START_ROW: &str = r#"
@@ -28,24 +27,39 @@ pub fn prettify(commits: &[String]) -> String {
     }
 }
 
-pub fn print_merged_commits<T>(commits: T) -> String
+pub fn create_message<C, B>(commits: C, branches: B) -> String
 where
-    T: AsRef<[RetroCommit]>,
+    C: AsRef<[RetroCommit]>,
+    B: AsRef<[WorkingBranch]>,
 {
-    let mut bmap: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    let mut author_commit_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let format_commit = |commit: &RetroCommit| format!("[done] {}", commit.message);
+    let format_branch = |branch: &WorkingBranch| format!("[in-progress] {}", branch.name);
+
     for commit in commits.as_ref() {
-        if let Some(authors_commits) = bmap.get_mut(&commit.author) {
-            authors_commits.push(commit.message.as_ref());
+        if let Some(authors_commits) = author_commit_map.get_mut(&commit.author) {
+            authors_commits.push(format_commit(commit));
         } else {
-            bmap.insert(commit.author.clone(), vec![commit.message.as_ref()]);
+            author_commit_map.insert(commit.author.clone(), vec![format_commit(commit)]);
         }
     }
-    let mut message = String::new();
-    for (author, commits) in bmap {
-        message.push_str(&format!("_{}_\n", author));
-        for commit in commits {
-            message.push_str(&format!("    *{}*\n", commit));
+
+    for branch in branches.as_ref() {
+        if let Some(authors_commits) = author_commit_map.get_mut(&branch.author) {
+            authors_commits.push(format_branch(branch));
+        } else {
+            author_commit_map.insert(branch.author.clone(), vec![format_branch(branch)]);
         }
+    }
+
+    let mut message = String::new();
+    for (author, jobs) in author_commit_map {
+        message.push_str(&format!("_{}_\n", author));
+        message.push_str("```\n");
+        for job in jobs {
+            message.push_str(&format!("    {}\n", job));
+        }
+        message.push_str("```\n");
     }
     message
 }
