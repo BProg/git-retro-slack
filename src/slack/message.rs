@@ -1,3 +1,8 @@
+use std::collections::BTreeMap;
+use std::borrow::Borrow;
+
+use crate::git::RetroCommit;
+
 const SUFFIX_EMOJIES: [char; 10] = ['🙌', '👍', '🙏', '🎉', '🚀', '🤘', '👏', '🙌', '👍', '🙏'];
 const START_ROW: &str = r#"
 A reminder on how cool you all are 😎
@@ -21,6 +26,28 @@ pub fn prettify(commits: &[String]) -> String {
     } else {
         pretty
     }
+}
+
+pub fn print_merged_commits<T>(commits: T) -> String
+where
+    T: AsRef<[RetroCommit]>,
+{
+    let mut bmap: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    for commit in commits.as_ref() {
+        if let Some(authors_commits) = bmap.get_mut(&commit.author) {
+            authors_commits.push(commit.message.as_ref());
+        } else {
+            bmap.insert(commit.author.clone(), vec![commit.message.as_ref()]);
+        }
+    }
+    let mut message = String::new();
+    for (author, commits) in bmap {
+        message.push_str(&format!("_{}_\n", author));
+        for commit in commits {
+            message.push_str(&format!("    *{}*\n", commit));
+        }
+    }
+    message
 }
 
 fn increase_index(i: usize) -> usize {

@@ -3,7 +3,7 @@ mod config;
 mod environment;
 mod git;
 mod launchd;
-mod message;
+mod slack;
 
 use git::RepoAnalyzer;
 use cli::{configure, get_command, log, Command};
@@ -61,8 +61,9 @@ fn run() -> Result<blocking::Response, Box<dyn error::Error>> {
         log::Style::Important(&app_config.to_string()),
     ]);
     let repo = RepoAnalyzer::new(&app_config.repo_path);
-    let log = repo.get_log()?;
-    send_to_slack(&app_config.slack_web_hook, &message::prettify(&log)).map_err(Box::from)
+    let commits = repo.get_commits()?;
+    let message = slack::message::print_merged_commits(commits);
+    send_to_slack(&app_config.slack_web_hook, &message).map_err(Box::from)
 }
 
 fn send_to_slack(hook: &str, log: &str) -> reqwest::Result<blocking::Response> {
