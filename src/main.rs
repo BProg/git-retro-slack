@@ -27,6 +27,11 @@ fn main() {
                 log::error(e.to_string());
             }
         }
+        Command::RunD => {
+            if let Err(e) = run() {
+                log::error(e.to_string());
+            }
+        }
         Command::InstallD => match launchd::install_daemon() {
             Err(e) => log::error(e.to_string()),
             Ok(path) => log::message(format!(
@@ -42,15 +47,16 @@ fn main() {
 }
 
 pub(crate) fn print_usage() {
-    let usage = r"gitretro
+    let usage = r"gitretro v0.1.0
 
-Usage:
+Arguments:
 gitretro run            runs the program
+gitretro rund           it's designed to be used by the launch agent (daemon)
 gitretro installd       installs the launch agent parameters in user's space
-gitretro config         configures the tool
+gitretro config         allows to configure the slack hook, and repo path
 
 Options:
---help          prints this message";
+--help                  prints this message";
     println!("{}", usage);
 }
 

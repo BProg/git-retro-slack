@@ -6,6 +6,7 @@ pub mod log;
 pub enum Command {
     Config,
     Run,
+    RunD,
     InstallD,
     Invalid,
     Help,
@@ -16,6 +17,7 @@ pub fn get_command() -> Command {
     match args.next() {
         Some(command) => match &command[..] {
             "run" => Command::Run,
+            "rund" => Command::RunD,
             "config" => Command::Config,
             "installd" => Command::InstallD,
             "--help" | "-h" => Command::Help,
