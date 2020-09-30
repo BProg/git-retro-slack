@@ -61,7 +61,7 @@ pub fn get_config() -> Result<Config, Box<dyn Error>> {
     path_buf.push(super::APP_NAME);
     path_buf.push(crate::environment::get_config_file());
     path_buf.set_extension("toml");
-    load_path(&path_buf.as_path()).map_err(|e| e.into())
+    load_path(path_buf.as_path()).map_err(|e| e.into())
 }
 
 pub fn store_config(config: &Config) -> Result<(), Box<dyn Error>> {
@@ -76,5 +76,5 @@ pub fn store_config(config: &Config) -> Result<(), Box<dyn Error>> {
     path_buf.push(super::APP_NAME);
     path_buf.push(crate::environment::get_config_file());
     path_buf.set_extension("toml");
-    store_path(&path_buf.as_path(), config).map_err(|e| e.into())
+    store_path(path_buf.as_path(), config).map_err(|e| e.into())
 }

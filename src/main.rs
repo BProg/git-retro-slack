@@ -28,7 +28,7 @@ fn main() {
             }
         }
         Command::RunD => {
-            if let Err(e) = run() {
+            if let Err(e) = cli::rundaemon::run() {
                 log::error(e.to_string());
             }
         }

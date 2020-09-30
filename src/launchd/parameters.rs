@@ -12,7 +12,7 @@ pub fn create_parameters(exe_path: &str, label: &str) -> String {
     <key>ProgramArguments</key>
     <array>
       <string>{0}</string>
-      <string>run</string>
+      <string>rund</string>
     </array>
     <key>StartCalendarInterval</key>
     <array>

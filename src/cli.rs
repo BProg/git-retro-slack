@@ -2,6 +2,7 @@ use crate::config::Config;
 use std::{env, error::Error, io};
 
 pub mod log;
+pub mod rundaemon;
 
 pub enum Command {
     Config,

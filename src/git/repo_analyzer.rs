@@ -69,18 +69,29 @@ impl RepoAnalyzer {
             branch_iter.fold(Ok(vec![]), |working_branches, branch| {
                 let mut working_branches = working_branches?;
                 let (branch, _) = branch?;
-                let reference = branch.get().resolve()?;
-                if let Some(oid) = reference.target() {
-                    let commit = repo.find_commit(oid)?;
-                    if self.is_commit_in_range(&commit, &from, &to) {
-                        working_branches.push(WorkingBranch {
-                            author: commit.author().name().map(String::from).unwrap_or_default(),
-                            name: branch.name()?.map(String::from).unwrap_or_default(),
-                        })
+                let name = branch.name()?.map(String::from).unwrap_or_default();
+                match &name[..] {
+                    "origin/HEAD" => Ok(working_branches),
+                    release if release.contains("release-") => Ok(working_branches),
+                    rest => {
+                        let reference = branch.get().resolve()?;
+                        if let Some(oid) = reference.target() {
+                            let commit = repo.find_commit(oid)?;
+                            if self.is_commit_in_range(&commit, &from, &to) {
+                                working_branches.push(WorkingBranch {
+                                    author: commit
+                                        .author()
+                                        .name()
+                                        .map(String::from)
+                                        .unwrap_or_default(),
+                                    name: rest.into(),
+                                })
+                            }
+                        }
+
+                        Ok(working_branches)
                     }
                 }
-
-                Ok(working_branches)
             });
         working_branches
     }
@@ -123,12 +134,12 @@ impl RepoAnalyzer {
         let mut cbs = RemoteCallbacks::new();
         cbs.credentials(|_url, username_from_url, _allowed_types| {
             Cred::ssh_key(
-              username_from_url.unwrap(),
-              None,
-              std::path::Path::new(&format!("{}/.ssh/id_rsa", env::var("HOME").unwrap())),
-              None,
+                username_from_url.unwrap(),
+                None,
+                std::path::Path::new(&format!("{}/.ssh/id_rsa", env::var("HOME").unwrap())),
+                None,
             )
-          });
+        });
         options.remote_callbacks(cbs);
         let repo = self
             .repo
