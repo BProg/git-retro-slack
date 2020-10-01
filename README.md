@@ -16,3 +16,7 @@
 ## About
 
 It's a mini project that I did for myself, because I want to learn the rust language more
+
+## Story
+
+[Read here some story on how it started](https://bprog.github.io/rust_slack_bot/)
