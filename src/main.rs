@@ -1,16 +1,18 @@
 mod cli;
 mod config;
-mod environment;
+mod fs;
 mod git;
 mod launchd;
 mod slack;
 
-use git::RepoAnalyzer;
 use cli::{configure, get_command, log, Command};
+use config::Config;
+use git::RepoAnalyzer;
 use reqwest::blocking;
 use std::*;
 
 pub const APP_NAME: &str = "git-retrospective";
+pub type DynErrResult<T> = Result<T, Box<dyn error::Error>>;
 
 fn main() {
     match get_command() {
@@ -18,7 +20,7 @@ fn main() {
             print_usage();
         }
         Command::Config => {
-            if let Err(e) = configure().and_then(|cfg| config::store_config(&cfg)) {
+            if let Err(e) = configure().and_then(|cfg| cfg.store()) {
                 log::error(e.to_string());
             }
         }
@@ -61,7 +63,7 @@ Options:
 }
 
 fn run() -> Result<blocking::Response, Box<dyn error::Error>> {
-    let app_config = config::get_config()?;
+    let app_config = Config::load()?;
     log::multiple(vec![
         log::Style::Message("Config: "),
         log::Style::Important(&app_config.to_string()),

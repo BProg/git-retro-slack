@@ -1,23 +1,7 @@
-use crate::cli::log;
+use crate::{fs::get_config_file, DynErrResult};
 use confy::{load_path, store_path};
-use directories::UserDirs;
 use serde::{Deserialize, Serialize};
-use std::{error::Error, fmt::Display};
-
-#[derive(Debug)]
-pub enum ConfigError {
-    UserHome,
-}
-
-impl Error for ConfigError {}
-
-impl Display for ConfigError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConfigError::UserHome => write!(f, "HOME path is invalid"),
-        }
-    }
-}
+use std::{fmt::Display, path::PathBuf};
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
@@ -31,6 +15,24 @@ impl Config {
             repo_path: repo_path.into(),
             slack_web_hook: slack_web_hook.into(),
         }
+    }
+
+    pub fn load() -> DynErrResult<Config> {
+        let file_path = Config::get_file_path()?;
+        load_path(file_path.as_path()).map_err(Box::from)
+    }
+
+    pub fn store(&self) -> DynErrResult<()> {
+        let file_path = Config::get_file_path()?;
+        store_path(file_path.as_path(), self).map_err(Box::from)
+    }
+
+    fn get_file_path() -> DynErrResult<PathBuf> {
+        #[cfg(feature = "production")]
+        let file = "config";
+        #[cfg(not(feature = "production"))]
+        let file = "config_dev";
+        get_config_file(file)
     }
 }
 
@@ -51,30 +53,4 @@ impl Default for Config {
             slack_web_hook: "".into(),
         }
     }
-}
-
-pub fn get_config() -> Result<Config, Box<dyn Error>> {
-    let dirs = UserDirs::new().ok_or(ConfigError::UserHome)?;
-    let path = dirs.home_dir();
-    let mut path_buf = path.to_path_buf();
-    path_buf.push(".config");
-    path_buf.push(super::APP_NAME);
-    path_buf.push(crate::environment::get_config_file());
-    path_buf.set_extension("toml");
-    load_path(path_buf.as_path()).map_err(|e| e.into())
-}
-
-pub fn store_config(config: &Config) -> Result<(), Box<dyn Error>> {
-    log::multiple(vec![
-        log::Style::Message("Config: "),
-        log::Style::Important(&config.to_string()),
-    ]);
-    let dirs = UserDirs::new().ok_or(ConfigError::UserHome)?;
-    let path = dirs.home_dir();
-    let mut path_buf = path.to_path_buf();
-    path_buf.push(".config");
-    path_buf.push(super::APP_NAME);
-    path_buf.push(crate::environment::get_config_file());
-    path_buf.set_extension("toml");
-    store_path(path_buf.as_path(), config).map_err(|e| e.into())
 }
