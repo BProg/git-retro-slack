@@ -1,4 +1,4 @@
-use crate::log;
+use crate::DynErrResult;
 use chrono::Duration;
 use git2::{BranchType, Commit, Cred, FetchOptions, FetchPrune, RemoteCallbacks, Repository, Time};
 use std::{env, error::Error};
@@ -27,16 +27,17 @@ impl<'repo> From<git2::Commit<'repo>> for RetroCommit {
 }
 
 pub struct RepoAnalyzer {
-    interval: SearchInterval,
-    repo: Result<Repository, git2::Error>,
+    pub interval: SearchInterval,
+    pub repo: Repository,
 }
 
 impl RepoAnalyzer {
-    pub fn new(repo_path: &str) -> Self {
-        Self {
-            repo: Repository::open(repo_path),
+    pub fn new(repo_path: &str) -> DynErrResult<Self> {
+        let repo = Repository::open(repo_path)?;
+        Ok(Self {
+            repo,
             interval: SearchInterval::start_now(Duration::weeks(2)),
-        }
+        })
     }
 
     #[allow(dead_code)]
@@ -46,26 +47,16 @@ impl RepoAnalyzer {
 
     pub fn get_commits(&self) -> Result<Vec<RetroCommit>, Box<dyn Error>> {
         let SearchInterval { from, to } = self.interval;
-        log::multiple(vec![
-            log::Style::Message("Searching logs from: "),
-            log::Style::Important(&from.to_string()),
-            log::Style::Message(" to "),
-            log::Style::Important(&to.to_string()),
-        ]);
         let (from, to) = self.interval.get_git_time();
         let merged = self.get_merged(from, to)?;
         Ok(merged)
     }
 
-    pub fn get_in_progress(&self) -> Result<Vec<WorkingBranch>, Box<dyn Error>> {
-        let repo = self
-            .repo
-            .as_ref()
-            .map_err(|e| Box::new(clone_git2_error(e)))?;
+    pub fn get_in_progress(&self) -> DynErrResult<Vec<WorkingBranch>> {
         self.fetch_all()?;
         let (from, to) = self.interval.get_git_time();
-        let branch_iter = repo.branches(Some(BranchType::Remote))?;
-        let working_branches: Result<Vec<WorkingBranch>, Box<dyn Error>> =
+        let branch_iter = self.repo.branches(Some(BranchType::Remote))?;
+        let working_branches: DynErrResult<Vec<WorkingBranch>> =
             branch_iter.fold(Ok(vec![]), |working_branches, branch| {
                 let mut working_branches = working_branches?;
                 let (branch, _) = branch?;
@@ -76,7 +67,7 @@ impl RepoAnalyzer {
                     rest => {
                         let reference = branch.get().resolve()?;
                         if let Some(oid) = reference.target() {
-                            let commit = repo.find_commit(oid)?;
+                            let commit = self.repo.find_commit(oid)?;
                             if self.is_commit_in_range(&commit, &from, &to) {
                                 working_branches.push(WorkingBranch {
                                     author: commit
@@ -96,28 +87,19 @@ impl RepoAnalyzer {
         working_branches
     }
 
-    fn get_merged(&self, from: Time, to: Time) -> Result<Vec<RetroCommit>, Box<dyn Error>> {
-        let repo = self
-            .repo
-            .as_ref()
-            .map_err(|e| Box::new(clone_git2_error(e)))?;
-        let mut revwalk = repo.revwalk()?;
+    fn get_merged(&self, from: Time, to: Time) -> DynErrResult<Vec<RetroCommit>> {
+        let mut revwalk = self.repo.revwalk()?;
         revwalk.push_head()?;
         let commits = revwalk
-            .map(|oid| repo.find_commit(oid?))
-            .skip_while(|commit| {
-                commit
-                    .as_ref()
-                    .map(|commit| !self.is_commit_in_range(commit, &from, &to))
-                    .unwrap_or(true)
+            .filter_map(|oid| {
+                if let Ok(oid) = oid {
+                    self.repo.find_commit(oid).ok()
+                } else {
+                    None
+                }
             })
-            .take_while(|commit| {
-                commit
-                    .as_ref()
-                    .map(|commit| self.is_commit_in_range(commit, &from, &to))
-                    .unwrap_or(false)
-            })
-            .filter_map(|commit| commit.ok())
+            .skip_while(|commit| !self.is_commit_in_range(commit, &from, &to))
+            .take_while(|commit| self.is_commit_in_range(commit, &from, &to))
             .map(RetroCommit::from)
             .collect::<Vec<RetroCommit>>();
         Ok(commits)
@@ -128,9 +110,7 @@ impl RepoAnalyzer {
         commit_time_secs > from.seconds() && commit_time_secs < to.seconds()
     }
 
-    fn fetch_all(&self) -> Result<(), Box<dyn Error>> {
-        let mut options = FetchOptions::new();
-        options.prune(FetchPrune::On);
+    fn fetch_all(&self) -> DynErrResult<()> {
         let mut cbs = RemoteCallbacks::new();
         cbs.credentials(|_url, username_from_url, _allowed_types| {
             Cred::ssh_key(
@@ -140,19 +120,13 @@ impl RepoAnalyzer {
                 None,
             )
         });
-        options.remote_callbacks(cbs);
-        let repo = self
-            .repo
-            .as_ref()
-            .map_err(|e| Box::new(clone_git2_error(e)))?;
-        repo.find_remote("origin")?
+        let mut options = FetchOptions::new();
+        options.prune(FetchPrune::On).remote_callbacks(cbs);
+        self.repo
+            .find_remote("origin")?
             .fetch(&["master"], Some(&mut options), None)?;
         Ok(())
     }
-}
-
-fn clone_git2_error(error: &git2::Error) -> git2::Error {
-    git2::Error::from_str(error.message())
 }
 
 #[cfg(test)]
@@ -166,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_get_commits() {
-        let mut repo = super::RepoAnalyzer::new("./");
+        let mut repo = super::RepoAnalyzer::new("./").expect("Cant open path ./");
         repo.set_interval(SearchInterval::starting(
             day_with_commits(),
             Duration::days(1),
@@ -185,7 +159,7 @@ mod tests {
         use super::{SearchInterval, WorkingBranch};
         use chrono::Duration;
 
-        let mut repo = super::RepoAnalyzer::new("./");
+        let mut repo = super::RepoAnalyzer::new("./").unwrap();
         repo.set_interval(SearchInterval::starting(
             day_with_commits(),
             Duration::weeks(2),

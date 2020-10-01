@@ -1,5 +1,5 @@
-use crate::config::Config;
-use std::{env, error::Error, io};
+use crate::{config::Config, DynErrResult};
+use std::{env, io};
 
 pub mod log;
 pub mod rundaemon;
@@ -28,7 +28,7 @@ pub fn get_command() -> Command {
     }
 }
 
-pub fn configure() -> Result<Config, Box<dyn Error>> {
+pub fn configure() -> DynErrResult<Config> {
     log::important("Repository absolute path:");
     let mut path = String::new();
     match io::stdin().read_line(&mut path) {

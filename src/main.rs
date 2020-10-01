@@ -7,7 +7,7 @@ mod slack;
 
 use cli::{configure, get_command, log, Command};
 use config::Config;
-use git::RepoAnalyzer;
+use git::{search_interval::SearchInterval, RepoAnalyzer};
 use reqwest::blocking;
 use std::*;
 
@@ -62,13 +62,20 @@ Options:
     println!("{}", usage);
 }
 
-fn run() -> Result<blocking::Response, Box<dyn error::Error>> {
+fn run() -> DynErrResult<blocking::Response> {
     let app_config = Config::load()?;
     log::multiple(vec![
         log::Style::Message("Config: "),
         log::Style::Important(&app_config.to_string()),
     ]);
-    let repo = RepoAnalyzer::new(&app_config.repo_path);
+    let repo = RepoAnalyzer::new(&app_config.repo_path)?;
+    let SearchInterval { from, to } = repo.interval;
+    log::multiple(vec![
+        log::Style::Message("Searching logs from: "),
+        log::Style::Important(&from.to_string()),
+        log::Style::Message(" to "),
+        log::Style::Important(&to.to_string()),
+    ]);
     let commits = repo.get_commits()?;
     let branches = repo.get_in_progress()?;
     let message = slack::message::create_message(commits, branches);
