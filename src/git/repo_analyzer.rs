@@ -46,7 +46,6 @@ impl RepoAnalyzer {
     }
 
     pub fn get_commits(&self) -> Result<Vec<RetroCommit>, Box<dyn Error>> {
-        let SearchInterval { from, to } = self.interval;
         let (from, to) = self.interval.get_git_time();
         let merged = self.get_merged(from, to)?;
         Ok(merged)

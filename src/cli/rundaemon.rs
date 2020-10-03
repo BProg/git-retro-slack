@@ -1,6 +1,6 @@
 use super::log;
 use crate::{
-    config, fs::get_savedata_file, git, git::RepoAnalyzer, send_to_slack, slack, DynErrResult,
+    config, fs::get_savedata_file, git, git::RepoAnalyzer, slack, DynErrResult,
 };
 use config::Config;
 use confy::{load_path, store_path};
@@ -32,8 +32,13 @@ pub fn run() -> DynErrResult<()> {
     ]);
     let commits = repo.get_commits()?;
     let branches = repo.get_in_progress()?;
-    let message = slack::message::create_message(commits, branches);
-    send_to_slack(app_config.slack_web_hook, message).map(|_| ())?;
+    let message = slack::Message {
+        branches,
+        commits,
+        interval: repo.interval
+    };
+    let response = message.send_to_slack(app_config.slack_web_hook, message.format_slack())?;
+    log::message(format!("{:?}", &response));
     write_did_run(RunDaemon { did_run: true })
 }
 

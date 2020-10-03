@@ -5,7 +5,7 @@ mod git;
 mod launchd;
 mod slack;
 
-use cli::{configure, get_command, log, Command};
+use cli::{configure, log, Command};
 use config::Config;
 use git::{search_interval::SearchInterval, RepoAnalyzer};
 use reqwest::blocking;
@@ -15,10 +15,10 @@ pub const APP_NAME: &str = "git-retrospective";
 pub type DynErrResult<T> = Result<T, Box<dyn error::Error>>;
 
 fn main() {
-    match get_command() {
+    match Command::parse_args() {
         Command::Help => {
-            print_usage();
-        }
+            log::message(Command::Help.help());
+        },
         Command::Config => {
             if let Err(e) = configure().and_then(|cfg| cfg.store()) {
                 log::error(e.to_string());
@@ -48,20 +48,6 @@ fn main() {
     };
 }
 
-pub(crate) fn print_usage() {
-    let usage = r"gitretro v0.1.0
-
-Arguments:
-gitretro run            runs the program
-gitretro rund           it's designed to be used by the launch agent (daemon)
-gitretro installd       installs the launch agent parameters in user's space
-gitretro config         allows to configure the slack hook, and repo path
-
-Options:
---help                  prints this message";
-    println!("{}", usage);
-}
-
 fn run() -> DynErrResult<blocking::Response> {
     let app_config = Config::load()?;
     log::multiple(vec![
@@ -78,15 +64,11 @@ fn run() -> DynErrResult<blocking::Response> {
     ]);
     let commits = repo.get_commits()?;
     let branches = repo.get_in_progress()?;
-    let message = slack::message::create_message(commits, branches);
-    send_to_slack(app_config.slack_web_hook, message).map_err(Box::from)
+    let message = slack::Message {
+        branches,
+        commits,
+        interval: repo.interval
+    };
+    message.send_to_slack(app_config.slack_web_hook, message.format_slack()).map_err(Box::from)
 }
 
-fn send_to_slack<T: AsRef<str>>(hook: T, log: T) -> reqwest::Result<blocking::Response> {
-    log::message(format!("Sending to slack \n{}", log.as_ref()));
-    let client = blocking::Client::new();
-    client
-        .post(hook.as_ref())
-        .body(format!("{{\"text\": \"{}\"}}", log.as_ref()))
-        .send()
-}

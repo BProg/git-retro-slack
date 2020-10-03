@@ -13,20 +13,50 @@ pub enum Command {
     Help,
 }
 
-pub fn get_command() -> Command {
-    let mut args = env::args().skip(1);
-    match args.next() {
-        Some(command) => match &command[..] {
-            "run" => Command::Run,
-            "rund" => Command::RunD,
-            "config" => Command::Config,
-            "installd" => Command::InstallD,
-            "--help" | "-h" => Command::Help,
-            _ => Command::Invalid,
-        },
-        None => Command::Invalid,
+impl Command {
+    pub fn parse_args() -> Command {
+        let mut args = env::args().skip(1);
+        match args.next() {
+            Some(command) => match &command[..] {
+                "run" => Command::Run,
+                "rund" => Command::RunD,
+                "config" => Command::Config,
+                "installd" => Command::InstallD,
+                "--help" | "-h" => Command::Help,
+                _ => Command::Invalid,
+            },
+            None => Command::Invalid,
+        }
+    }
+
+    pub fn help(&self) -> String {
+        match self {
+            Command::Config => "allows to configure the slack hook, and repo path".into(),
+            Command::Run => "runs the program".into(),
+            Command::RunD => "it's designed to be used by the launch agent (daemon)".into(),
+            Command::InstallD => "installs the launch agent parameters in user's space".into(),
+            Command::Help => format!(
+                r#"
+gitretro v0.1.0
+
+COMMANDS
+run         {}
+rund        {}
+installd    {}
+config      {}
+help        {}
+"#,
+                Command::Run.help(),
+                Command::RunD.help(),
+                Command::InstallD.help(),
+                Command::Config.help(),
+                "prints this message"
+            ),
+            Command::Invalid => String::new(),
+        }
     }
 }
+
 
 pub fn configure() -> DynErrResult<Config> {
     log::important("Repository absolute path:");
