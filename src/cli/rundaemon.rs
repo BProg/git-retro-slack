@@ -32,7 +32,7 @@ pub fn run() -> DynErrResult<()> {
     ]);
     let commits = repo.get_commits()?;
     let branches = repo.get_in_progress()?;
-    let message = slack::Message {
+    let message = slack::MessageIngredients {
         branches,
         commits,
         interval: repo.interval

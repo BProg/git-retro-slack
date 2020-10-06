@@ -62,6 +62,7 @@ impl RepoAnalyzer {
                 let name = branch.name()?.map(String::from).unwrap_or_default();
                 match &name[..] {
                     "origin/HEAD" => Ok(working_branches),
+                    "origin/master" => Ok(working_branches),
                     release if release.contains("release-") => Ok(working_branches),
                     rest => {
                         let reference = branch.get().resolve()?;
@@ -87,21 +88,29 @@ impl RepoAnalyzer {
     }
 
     fn get_merged(&self, from: Time, to: Time) -> DynErrResult<Vec<RetroCommit>> {
-        let mut revwalk = self.repo.revwalk()?;
-        revwalk.push_head()?;
-        let commits = revwalk
-            .filter_map(|oid| {
-                if let Ok(oid) = oid {
-                    self.repo.find_commit(oid).ok()
-                } else {
-                    None
-                }
-            })
-            .skip_while(|commit| !self.is_commit_in_range(commit, &from, &to))
-            .take_while(|commit| self.is_commit_in_range(commit, &from, &to))
-            .map(RetroCommit::from)
-            .collect::<Vec<RetroCommit>>();
-        Ok(commits)
+        self.fetch_all()?;
+        let master_branch = self.repo.find_branch("origin/master", BranchType::Remote)?;
+        match master_branch.get().resolve()?.target() {
+            Some(oid) => {
+                let mut revwalk = self.repo.revwalk()?;
+                revwalk.push(oid)?;
+                let commits = revwalk
+                    .filter_map(|oid| {
+                        if let Ok(oid) = oid {
+                            self.repo.find_commit(oid).ok()
+                        } else {
+                            None
+                        }
+                    })
+                    .skip_while(|commit| !self.is_commit_in_range(commit, &from, &to))
+                    .take_while(|commit| self.is_commit_in_range(commit, &from, &to))
+                    .map(RetroCommit::from)
+                    .collect::<Vec<RetroCommit>>();
+                Ok(commits)
+            },
+            None => Ok(vec![])
+        }
+
     }
 
     fn is_commit_in_range(&self, commit: &Commit, from: &Time, to: &Time) -> bool {
@@ -121,9 +130,10 @@ impl RepoAnalyzer {
         });
         let mut options = FetchOptions::new();
         options.prune(FetchPrune::On).remote_callbacks(cbs);
+        let specs: [&str; 0] = [];
         self.repo
             .find_remote("origin")?
-            .fetch(&["master"], Some(&mut options), None)?;
+            .fetch(&specs, Some(&mut options), None)?;
         Ok(())
     }
 }

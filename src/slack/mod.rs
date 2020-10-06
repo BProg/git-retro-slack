@@ -1,9 +1,16 @@
 use reqwest::blocking;
 
-use crate::{cli::log, git::{search_interval::SearchInterval, RetroCommit, WorkingBranch}};
+use crate::{DynErrResult, cli::log, git::{search_interval::SearchInterval, RetroCommit, WorkingBranch}};
 use std::collections::BTreeMap;
+use serde::{Deserialize, Serialize};
+use serde_json;
 
-pub struct Message<C, B>
+#[derive(Serialize, Deserialize)]
+struct Message {
+    text: String
+}
+
+pub struct MessageIngredients<C, B>
 where
     C: AsRef<[RetroCommit]>,
     B: AsRef<[WorkingBranch]>,
@@ -13,7 +20,7 @@ where
     pub interval: SearchInterval,
 }
 
-impl<C, B> Message<C, B>
+impl<C, B> MessageIngredients<C, B>
 where
     C: AsRef<[RetroCommit]>,
     B: AsRef<[WorkingBranch]>,
@@ -39,7 +46,7 @@ where
             }
         }
 
-        let mut message = String::new(); // format!("Team status from {} to {}\n", self.interval.from, self.interval.to);
+        let mut message = format!("Team git-status from {} to {}\n", self.interval.from, self.interval.to);
         for (author, jobs) in author_commit_map {
             message.push_str(&format!("_{}_\n", author));
             message.push_str("```\n");
@@ -51,13 +58,15 @@ where
         message
     }
 
-    pub fn send_to_slack<T: AsRef<str>>(&self, hook: T, log: T) -> reqwest::Result<blocking::Response> {
-        let payload = format!("{{\"text\": \"{}\"}}", log.as_ref().replace("\"", "\\\""));
+    pub fn send_to_slack<T: AsRef<str>>(&self, hook: T, log: T) -> DynErrResult<blocking::Response> {
+        let escaped = serde_json::ser::to_string(log.as_ref())?;
+        let payload = format!("{{\"text\": {}}}", escaped);
         log::message(format!("Sending to slack \n{}", &payload));
         let client = blocking::Client::new();
         client
             .post(hook.as_ref())
             .body(payload)
             .send()
+            .map_err(Box::from)
     }
 }
