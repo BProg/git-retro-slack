@@ -69,6 +69,6 @@ fn run() -> DynErrResult<blocking::Response> {
         commits,
         interval: repo.interval
     };
-    message.send_to_slack(app_config.slack_web_hook, message.format_slack()).map_err(Box::from)
+    message.send_to_slack(app_config.slack_web_hook, message.format_slack())
 }
 

@@ -27,23 +27,13 @@ where
 {
     pub fn format_slack(&self) -> String {
         let mut author_commit_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
-        let format_commit = |commit: &RetroCommit| format!("[done] {}", commit.message);
-        let format_branch = |branch: &WorkingBranch| format!("[in-progress] {}", branch.name);
-
         for commit in self.commits.as_ref() {
-            if let Some(authors_commits) = author_commit_map.get_mut(&commit.author) {
-                authors_commits.push(format_commit(commit));
-            } else {
-                author_commit_map.insert(commit.author.clone(), vec![format_commit(commit)]);
-            }
+            let commits = author_commit_map.entry(commit.author.clone()).or_default();
+            commits.push(format!("[done] {}", commit.message));
         }
-
         for branch in self.branches.as_ref() {
-            if let Some(authors_commits) = author_commit_map.get_mut(&branch.author) {
-                authors_commits.push(format_branch(branch));
-            } else {
-                author_commit_map.insert(branch.author.clone(), vec![format_branch(branch)]);
-            }
+            let commits = author_commit_map.entry(branch.author.clone()).or_default();
+            commits.push(format!("[in-progress] {}", branch.name));
         }
 
         let mut message = format!("Team git-status from {} to {}\n", self.interval.from, self.interval.to);
@@ -59,8 +49,10 @@ where
     }
 
     pub fn send_to_slack<T: AsRef<str>>(&self, hook: T, log: T) -> DynErrResult<blocking::Response> {
-        let escaped = serde_json::ser::to_string(log.as_ref())?;
-        let payload = format!("{{\"text\": {}}}", escaped);
+        let msg = Message {
+            text: log.as_ref().to_string()
+        };
+        let payload = serde_json::ser::to_string(&msg)?;
         log::message(format!("Sending to slack \n{}", &payload));
         let client = blocking::Client::new();
         client
